@@ -1,4 +1,3 @@
 requests
 python-dotenv
-mysql-connector-python   # if using MySQL
-# sqlite3 is part of Python stdlib
+mysql-connector-python
