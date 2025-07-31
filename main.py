@@ -1,46 +1,29 @@
-import os
-import requests
-import time
 import csv
-from dotenv import load_dotenv
+from db import init_db, insert_game
 
-load_dotenv()
+csv_path = "steam_games.csv"
 
-# Fetch App Details from Steam API
-def get_app_details(appid):
-    url = f"https://store.steampowered.com/api/appdetails?appids={appid}"
-    try:
-        response = requests.get(url, timeout=5)
-        if response.status_code == 200:
-            data = response.json()
-            if data.get(str(appid), {}).get("success"):
-                return data[str(appid)]["data"]
-    except Exception as e:
-        print(f"Error fetching AppID {appid}: {e}")
-    return None
+def load_steam_data(csv_file):
+    games = []
+    with open(csv_file, newline='', encoding='utf-8') as file:
+        reader = csv.DictReader(file)
+        for row in reader:
+            appid = int(row["AppID"])
+            name = row["Name"]
+            developer = row["Developer"]
+            release_date = row["Release Date"]
+            type_ = row["Type"]
+            games.append((appid, name, developer, release_date, type_))
+    return games
 
 def main():
-    output_file = "steam_games.csv"
+    init_db()
+    games = load_steam_data(csv_path)
 
-    with open(output_file, "w", newline="", encoding="utf-8") as csvfile:
-        writer = csv.writer(csvfile)
-        writer.writerow(["AppID", "Name", "Developer", "Release Date", "Type"])  # CSV header
+    for game in games:
+        insert_game(*game)
 
-        for appid in range(0, 101):
-            details = get_app_details(appid)
-
-            if details and details.get("type") == "game":
-                name = details.get("name", "Unknown")
-                developer = details.get("developers", ["Unknown"])[0]
-                release_date = details.get("release_date", {}).get("date", "Unknown")
-                type_ = details.get("type", "Unknown")
-
-                print(f"[{appid}] {name} | {developer} | {release_date}")
-                writer.writerow([appid, name, developer, release_date, type_])
-            else:
-                print(f"[{appid}] empty ID.")
-
-            time.sleep(0.1)
+    print(f"Inserted {len(games)} games into the database.")
 
 if __name__ == "__main__":
     main()
