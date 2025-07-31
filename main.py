@@ -38,7 +38,7 @@ def main():
                 print(f"[{appid}] {name} | {developer} | {release_date}")
                 writer.writerow([appid, name, developer, release_date, type_])
             else:
-                print(f"[{appid}] Not a game or invalid data.")
+                print(f"[{appid}] empty ID.")
 
             time.sleep(0.1)
 
