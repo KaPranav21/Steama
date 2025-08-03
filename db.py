@@ -1,26 +1,35 @@
-import sqlite3
+import mysql.connector
 
-DB_NAME = "steam.db"
+DB_CONFIG = {
+    'user': 'root',
+    'password': '4VC8SIIO?!',
+    'host': 'localhost',
+    'database': 'steam_project',
+}
 
 def init_db():
-    with sqlite3.connect(DB_NAME) as conn:
-        cursor = conn.cursor()
-        cursor.execute('''
-            CREATE TABLE IF NOT EXISTS games (
-                appid INTEGER PRIMARY KEY,
-                name TEXT,
-                developer TEXT,
-                release_date TEXT,
-                type TEXT
-            )
-        ''')
-        conn.commit()
+    conn = mysql.connector.connect(**DB_CONFIG)
+    cursor = conn.cursor()
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS games (
+            appid INT PRIMARY KEY,
+            name VARCHAR(255),
+            developer VARCHAR(255),
+            release_date VARCHAR(50),
+            type VARCHAR(100)
+        )
+    ''')
+    conn.commit()
+    cursor.close()
+    conn.close()
 
 def insert_game(appid, name, developer, release_date, type_):
-    with sqlite3.connect(DB_NAME) as conn:
-        cursor = conn.cursor()
-        cursor.execute('''
-            INSERT OR IGNORE INTO games (appid, name, developer, release_date, type)
-            VALUES (?, ?, ?, ?, ?)
-        ''', (appid, name, developer, release_date, type_))
-        conn.commit()
+    conn = mysql.connector.connect(**DB_CONFIG)
+    cursor = conn.cursor()
+    cursor.execute('''
+        INSERT IGNORE INTO games (appid, name, developer, release_date, type)
+        VALUES (%s, %s, %s, %s, %s)
+    ''', (appid, name, developer, release_date, type_))
+    conn.commit()
+    cursor.close()
+    conn.close()
