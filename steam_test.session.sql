@@ -1,1 +1,1 @@
-show database steam_project;
+DROP TABLE IF EXISTS games;

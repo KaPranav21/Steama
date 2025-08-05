@@ -1,30 +1,34 @@
 import requests
-import sqlite3
 import time
 import os
+import mysql.connector
 from dotenv import load_dotenv
 
-# Load API key from .env if needed
+# Load API key from .env
 load_dotenv()
 STEAM_API_KEY = os.getenv("STEAM_API_KEY")
+db_pass = os.getenv("DB_PASSWORD")
 
-DB_NAME = "steam_games.db"
-PROCESSED_FILE = "processed_ids.txt"
+DB_CONFIG = {
+    'user': 'root',
+    'password': db_pass,
+    'host': 'localhost',
+    'database': 'steam_project',
+}
+
+PROCESSED_FILE = "pi.txt"
 
 
 def init_db():
-    conn = sqlite3.connect(DB_NAME)
-    c = conn.cursor()
-    c.execute('''
+    conn = mysql.connector.connect(**DB_CONFIG)
+    cursor = conn.cursor()
+    cursor.execute('''
         CREATE TABLE IF NOT EXISTS games (
-            appid INTEGER PRIMARY KEY,
-            name TEXT,
-            type TEXT,
-            is_free INTEGER,
-            short_description TEXT
+            appid INT PRIMARY KEY
         )
     ''')
     conn.commit()
+    cursor.close()
     conn.close()
 
 
@@ -35,46 +39,14 @@ def fetch_all_apps():
     return data['applist']['apps']
 
 
-def fetch_app_details(appid, retries=3):
-    url = f"https://store.steampowered.com/api/appdetails?appids={appid}"
-    
-    for attempt in range(retries):
-        try:
-            response = requests.get(url)
-            if response.status_code == 429:
-                print(f"Rate limited on appid {appid}. Waiting...")
-                time.sleep(3)
-                continue
-
-            response.raise_for_status()
-            data = response.json()
-            app_data = data[str(appid)]
-
-            if not app_data.get("success", False):
-                return None
-
-            details = app_data["data"]
-            return (
-                appid,
-                details.get("name", ""),
-                details.get("type", ""),
-                int(details.get("is_free", False)),
-                details.get("short_description", "")
-            )
-        except Exception as e:
-            print(f"Error fetching appid {appid}: {e}")
-            time.sleep(1)
-    return None
-
-
-def insert_game(appid, name, type_, is_free, description):
-    conn = sqlite3.connect(DB_NAME)
-    c = conn.cursor()
-    c.execute('''
-        INSERT OR IGNORE INTO games (appid, name, type, is_free, short_description)
-        VALUES (?, ?, ?, ?, ?)
-    ''', (appid, name, type_, is_free, description))
+def insert_appid(appid):
+    conn = mysql.connector.connect(**DB_CONFIG)
+    cursor = conn.cursor()
+    cursor.execute('''
+        INSERT IGNORE INTO games (appid) VALUES (%s)
+    ''', (appid,))
     conn.commit()
+    cursor.close()
     conn.close()
 
 
@@ -91,37 +63,28 @@ def save_processed_id(appid):
 
 
 def main():
+    print(f"Using DB password: {db_pass}")
     init_db()
     processed_ids = load_processed_ids()
     apps = fetch_all_apps()
     print(f"Total apps fetched: {len(apps)}")
 
     count = 0
-    for app in apps:
+    for app in apps[:100]:  # limit for demo
         appid = app['appid']
-
         if appid in processed_ids:
             continue
 
-        details = fetch_app_details(appid)
-        if details:
-            insert_game(*details)
-            save_processed_id(appid)
-            print(f"Inserted game: {details[1]} (appid: {appid})")
-        else:
-            print(f"Skipping appid {appid} - no details")
+        insert_appid(appid)
+        save_processed_id(appid)
+        print(f"Inserted appid: {appid}")
 
         count += 1
         if count % 10 == 0:
             print(f"--- Pausing after {count} apps to avoid rate limit ---")
             time.sleep(3)
         else:
-            time.sleep(0.5)  # Light delay to prevent rate limiting
-
-        # Optional: Limit total for now
-        if count >= 100:
-            print("Reached limit of 100 apps (demo run).")
-            break
+            time.sleep(0.5)
 
 
 if __name__ == "__main__":

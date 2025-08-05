@@ -2,7 +2,7 @@ import mysql.connector
 
 DB_CONFIG = {
     'user': 'root',
-    'password': '4VC8SIIO?!',
+    'password': 'your_password',
     'host': 'localhost',
     'database': 'steam_project',
 }
@@ -12,33 +12,28 @@ def init_db():
     cursor = conn.cursor()
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS games (
-            appid INT PRIMARY KEY,
-            name VARCHAR(255),
-            developer VARCHAR(255),
-            release_date VARCHAR(50),
-            type VARCHAR(100)
+            appid INT PRIMARY KEY
         )
     ''')
     conn.commit()
     cursor.close()
     conn.close()
 
-def insert_game(appid, name, developer, release_date, type_):
+def insert_appid(appid):
     conn = mysql.connector.connect(**DB_CONFIG)
     cursor = conn.cursor()
     cursor.execute('''
-        INSERT IGNORE INTO games (appid, name, developer, release_date, type)
-        VALUES (%s, %s, %s, %s, %s)
-    ''', (appid, name, developer, release_date, type_))
+        INSERT IGNORE INTO games (appid) VALUES (%s)
+    ''', (appid,))
     conn.commit()
     cursor.close()
     conn.close()
 
-def get_all_games():
+def get_all_appids():
     conn = mysql.connector.connect(**DB_CONFIG)
-    cursor = conn.cursor(dictionary=True)
-    cursor.execute("SELECT * FROM games")
-    games = cursor.fetchall()
+    cursor = conn.cursor()
+    cursor.execute("SELECT appid FROM games")
+    appids = [row[0] for row in cursor.fetchall()]
     cursor.close()
     conn.close()
-    return games
+    return appids
