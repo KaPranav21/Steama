@@ -33,3 +33,12 @@ def insert_game(appid, name, developer, release_date, type_):
     conn.commit()
     cursor.close()
     conn.close()
+
+def get_all_games():
+    conn = mysql.connector.connect(**DB_CONFIG)
+    cursor = conn.cursor(dictionary=True)
+    cursor.execute("SELECT * FROM games")
+    games = cursor.fetchall()
+    cursor.close()
+    conn.close()
+    return games
