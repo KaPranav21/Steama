@@ -48,7 +48,7 @@ def insert_user_game(user_id, appid, playtime):
     cursor.close()
     conn.close()
 
-def simulate_users(num_users=5, games_per_user=20):
+def simulate_users(num_users=35, min_games=1, max_games=56):
     print(f"DB password is: {DB_PASS}")
     appids = get_all_appids()
 
@@ -56,12 +56,14 @@ def simulate_users(num_users=5, games_per_user=20):
         username = f"user_{user_id}"
         insert_user(user_id, username)
 
-        owned_games = random.sample(appids, min(games_per_user, len(appids)))
+        # Choose a random number of games for this user
+        num_games = random.randint(min_games, max_games)
+        owned_games = random.sample(appids, min(num_games, len(appids)))
+
         for appid in owned_games:
             playtime = random.randint(10, 5000)  # minutes played
             insert_user_game(user_id, appid, playtime)
 
         print(f"Simulated data for {username} with {len(owned_games)} games.")
-
 if __name__ == "__main__":
     simulate_users()
