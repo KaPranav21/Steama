@@ -1,11 +1,15 @@
 from flask import Flask, jsonify
 import mysql.connector
+from dotenv import load_dotenv
+import os
 
+load_dotenv()
+DB_PASS = os.getenv("DB_PASSWORD")
 app = Flask(__name__, static_folder='static')
 
 DB_CONFIG = {
     'user': 'root',
-    'password': '4VC8SIIO?!',
+    'password': DB_PASS,
     'host': 'localhost',
     'database': 'steam_project',
 }
