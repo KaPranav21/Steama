@@ -1,91 +1,67 @@
 import requests
 import time
 import os
+import random
 import mysql.connector
 from dotenv import load_dotenv
 
-# Load API key from .env
+# Load API key and DB password from .env
 load_dotenv()
 STEAM_API_KEY = os.getenv("STEAM_API_KEY")
-db_pass = os.getenv("DB_PASSWORD")
+DB_PASS = os.getenv("DB_PASSWORD")
 
 DB_CONFIG = {
     'user': 'root',
-    'password': db_pass,
+    'password': DB_PASS,
     'host': 'localhost',
     'database': 'steam_project',
 }
 
-PROCESSED_FILE = "pi.txt"
-
-
-def init_db():
+def get_all_appids():
     conn = mysql.connector.connect(**DB_CONFIG)
     cursor = conn.cursor()
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS games (
-            appid INT PRIMARY KEY
-        )
-    ''')
+    cursor.execute("SELECT appid FROM games")
+    appids = [row[0] for row in cursor.fetchall()]
+    cursor.close()
+    conn.close()
+    return appids
+
+def insert_user(user_id, username):
+    conn = mysql.connector.connect(**DB_CONFIG)
+    cursor = conn.cursor()
+    cursor.execute("""
+        INSERT IGNORE INTO users (user_id, username) VALUES (%s, %s)
+    """, (user_id, username))
     conn.commit()
     cursor.close()
     conn.close()
 
-
-def fetch_all_apps():
-    response = requests.get("https://api.steampowered.com/ISteamApps/GetAppList/v2/")
-    response.raise_for_status()
-    data = response.json()
-    return data['applist']['apps']
-
-
-def insert_appid(appid):
+def insert_user_game(user_id, appid, playtime):
     conn = mysql.connector.connect(**DB_CONFIG)
     cursor = conn.cursor()
-    cursor.execute('''
-        INSERT IGNORE INTO games (appid) VALUES (%s)
-    ''', (appid,))
+    cursor.execute("""
+        INSERT INTO user_games (user_id, appid, playtime_hours)
+        VALUES (%s, %s, %s)
+        ON DUPLICATE KEY UPDATE playtime_hours=VALUES(playtime_hours)
+    """, (user_id, appid, playtime))
     conn.commit()
     cursor.close()
     conn.close()
 
+def simulate_users(num_users=5, games_per_user=20):
+    print(f"DB password is: {DB_PASS}")
+    appids = get_all_appids()
 
-def load_processed_ids():
-    if not os.path.exists(PROCESSED_FILE):
-        return set()
-    with open(PROCESSED_FILE, "r") as f:
-        return set(int(line.strip()) for line in f if line.strip().isdigit())
+    for user_id in range(1, num_users + 1):
+        username = f"user_{user_id}"
+        insert_user(user_id, username)
 
+        owned_games = random.sample(appids, min(games_per_user, len(appids)))
+        for appid in owned_games:
+            playtime = random.randint(10, 5000)  # minutes played
+            insert_user_game(user_id, appid, playtime)
 
-def save_processed_id(appid):
-    with open(PROCESSED_FILE, "a") as f:
-        f.write(f"{appid}\n")
-
-
-def main():
-    print(f"Using DB password: {db_pass}")
-    init_db()
-    processed_ids = load_processed_ids()
-    apps = fetch_all_apps()
-    print(f"Total apps fetched: {len(apps)}")
-
-    count = 0
-    for app in apps[:100]:  # limit for demo
-        appid = app['appid']
-        if appid in processed_ids:
-            continue
-
-        insert_appid(appid)
-        save_processed_id(appid)
-        print(f"Inserted appid: {appid}")
-
-        count += 1
-        if count % 10 == 0:
-            print(f"--- Pausing after {count} apps to avoid rate limit ---")
-            time.sleep(3)
-        else:
-            time.sleep(0.5)
-
+        print(f"Simulated data for {username} with {len(owned_games)} games.")
 
 if __name__ == "__main__":
-    main()
+    simulate_users()
